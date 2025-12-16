@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import api from "../Services/api";
 import ReactQuill from "react-quill-new";
-import "react-quill/dist/quill.snow.css";
+import "react-quill-new/dist/quill.snow.css";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
