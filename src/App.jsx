@@ -3,14 +3,13 @@ import { ToastContainer } from "react-toastify";
 import Navbar from "./components/Navbar";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Register from "./pages/Register";
-import Login from "./pages/Login";
+import Login from "./Pages/Login";
 import Blog from "./Pages/Blog";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import CreateBlog from "./pages/CreateBlog";
+import ForgotPassword from "./Pages/ForgotPassword";
+import ResetPassword from "./Pages/ResetPassword";
+import CreateBlog from "./Pages/CreateBlog";
 import PageNotFound from "./pages/PageNotFound";
 import AdminPanel from "./pages/AdminPanel";
-import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const App = () => {
