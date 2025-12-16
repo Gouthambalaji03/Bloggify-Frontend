@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://bloggify-backend-oynh.onrender.com",
+  baseURL: "https://bloggify-backend-oynh.onrender.com/api",
 });
 
 api.interceptors.request.use((config) => {
