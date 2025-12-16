@@ -1,6 +1,6 @@
 import React from "react";
 import { ToastContainer } from "react-toastify";
-import Navbar from "./components/Navbar";
+import Navbar from "./Components/Navbar";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Register from "./pages/Register";
 import Login from "./Pages/Login";
@@ -9,8 +9,8 @@ import ForgotPassword from "./Pages/ForgotPassword";
 import ResetPassword from "./Pages/ResetPassword";
 import CreateBlog from "./Pages/CreateBlog";
 import PageNotFound from "./pages/PageNotFound";
-import AdminPanel from "./pages/AdminPanel";
-import ProtectedRoute from "./components/ProtectedRoute";
+import AdminPanel from "./Pages/AdminPanel";
+import ProtectedRoute from "./Components/ProtectedRoute";
 
 const App = () => {
   return (
