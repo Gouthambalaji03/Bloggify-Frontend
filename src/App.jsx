@@ -2,7 +2,7 @@ import React from "react";
 import { ToastContainer } from "react-toastify";
 import Navbar from "./Components/Navbar";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Register from "./pages/Register";
+import Register from "./Pages/Register";
 import Login from "./Pages/Login";
 import Blog from "./Pages/Blog";
 import ForgotPassword from "./Pages/ForgotPassword";
