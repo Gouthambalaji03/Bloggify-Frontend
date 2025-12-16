@@ -8,7 +8,7 @@ import Blog from "./Pages/Blog";
 import ForgotPassword from "./Pages/ForgotPassword";
 import ResetPassword from "./Pages/ResetPassword";
 import CreateBlog from "./Pages/CreateBlog";
-import PageNotFound from "./pages/PageNotFound";
+import PageNotFound from "./Pages/PageNotFound";
 import AdminPanel from "./Pages/AdminPanel";
 import ProtectedRoute from "./Components/ProtectedRoute";
 
