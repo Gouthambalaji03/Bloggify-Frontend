@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import PageNotFound from '../pages/PageNotFound';
+import PageNotFound from '../Pages/PageNotFound';
 
 
 const ProtectedRoute = ({ children, adminOnly=false }) => {
