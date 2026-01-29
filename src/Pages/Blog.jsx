@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import api from "../Services/api";
 
 const Blog = () => {
     const [blogs, setBlogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSearching, setIsSearching] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchInput, setSearchInput] = useState("");
     const [pagination, setPagination] = useState({
@@ -13,16 +14,30 @@ const Blog = () => {
         hasNextPage: false,
         hasPrevPage: false,
     });
+    const searchInputRef = useRef(null);
+    const debounceTimerRef = useRef(null);
 
     useEffect(() => {
         fetchBlogs();
     }, [pagination.currentPage, searchQuery]);
 
+    // Keyboard shortcut: Press "/" to focus search
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === "/" && document.activeElement !== searchInputRef.current) {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+            }
+        };
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+    }, []);
+
     const fetchBlogs = async () => {
         setIsLoading(true);
         try {
             const response = await api.get(
-                `/posts/getpost?page=${pagination.currentPage}&limit=9&search=${searchQuery}`
+                `/posts/getpost?page=${pagination.currentPage}&limit=9&search=${encodeURIComponent(searchQuery)}`
             );
             setBlogs(response.data.posts);
             setPagination(prev => ({
@@ -33,18 +48,52 @@ const Blog = () => {
             console.log(error);
         } finally {
             setIsLoading(false);
+            setIsSearching(false);
         }
+    };
+
+    // Debounced search - triggers after user stops typing
+    const debouncedSearch = useCallback((value) => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+        setIsSearching(true);
+        debounceTimerRef.current = setTimeout(() => {
+            setSearchQuery(value);
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+        }, 500);
+    }, []);
+
+    const handleInputChange = (e) => {
+        const value = e.target.value;
+        setSearchInput(value);
+        debouncedSearch(value);
     };
 
     const handleSearch = (e) => {
         e.preventDefault();
+        // Clear any pending debounce and search immediately
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
         setSearchQuery(searchInput);
         setPagination(prev => ({ ...prev, currentPage: 1 }));
     };
 
+    const handleKeyDown = (e) => {
+        if (e.key === "Escape") {
+            clearSearch();
+            searchInputRef.current?.blur();
+        }
+    };
+
     const clearSearch = () => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
         setSearchInput("");
         setSearchQuery("");
+        setIsSearching(false);
         setPagination(prev => ({ ...prev, currentPage: 1 }));
     };
 
@@ -101,15 +150,24 @@ const Blog = () => {
                     <form onSubmit={handleSearch} className="max-w-xl mx-auto">
                         <div className="relative flex items-center">
                             <div className="absolute left-4 text-gray-400">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                {isSearching ? (
+                                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                )}
                             </div>
                             <input
+                                ref={searchInputRef}
                                 type="text"
                                 value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                placeholder="Search blogs by title or content..."
+                                onChange={handleInputChange}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Search blogs by title or content... (Press / to focus)"
                                 className="w-full pl-12 pr-24 py-4 rounded-2xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all duration-200 text-gray-900 placeholder-gray-400 shadow-sm"
                             />
                             {searchInput && (
@@ -117,6 +175,7 @@ const Blog = () => {
                                     type="button"
                                     onClick={clearSearch}
                                     className="absolute right-20 text-gray-400 hover:text-gray-600 transition-colors"
+                                    title="Clear search (Esc)"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -125,9 +184,10 @@ const Blog = () => {
                             )}
                             <button
                                 type="submit"
-                                className="absolute right-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all duration-200"
+                                disabled={isSearching}
+                                className="absolute right-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl transition-all duration-200"
                             >
-                                Search
+                                {isSearching ? "..." : "Search"}
                             </button>
                         </div>
                     </form>
