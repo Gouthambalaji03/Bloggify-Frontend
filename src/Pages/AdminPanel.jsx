@@ -8,15 +8,29 @@ const AdminPanel = () => {
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(null);
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        totalPages: 1,
+        totalPosts: 0,
+        hasNextPage: false,
+        hasPrevPage: false,
+    });
 
     useEffect(() => {
         fetchUnapprovedPosts();
-    }, []);
+    }, [pagination.currentPage]);
 
     const fetchUnapprovedPosts = async () => {
+        setIsLoading(true);
         try {
-            const response = await api.get("/posts/unapprovedpost");
+            const response = await api.get(
+                `/posts/unapprovedpost?page=${pagination.currentPage}&limit=9`
+            );
             setPosts(response.data.posts);
+            setPagination(prev => ({
+                ...prev,
+                ...response.data.pagination,
+            }));
         } catch (error) {
             console.log(error);
         } finally {
@@ -29,6 +43,10 @@ const AdminPanel = () => {
         try {
             const response = await api.patch(`/posts/${id}/approve`);
             setPosts(posts.filter((post) => post._id !== id));
+            setPagination(prev => ({
+                ...prev,
+                totalPosts: prev.totalPosts - 1,
+            }));
             toast.success(response.data.message);
         } catch (error) {
             setError(error.response.data.message);
@@ -43,6 +61,10 @@ const AdminPanel = () => {
         try {
             const response = await api.delete(`/posts/delete/${id}`);
             setPosts(posts.filter((post) => post._id !== id));
+            setPagination(prev => ({
+                ...prev,
+                totalPosts: prev.totalPosts - 1,
+            }));
             toast.success(response.data.message);
         } catch (error) {
             setError(error.response.data.message);
@@ -50,6 +72,43 @@ const AdminPanel = () => {
         } finally {
             setActionLoading(null);
         }
+    };
+
+    const goToPage = (page) => {
+        setPagination(prev => ({ ...prev, currentPage: page }));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const renderPageNumbers = () => {
+        const pages = [];
+        const { currentPage, totalPages } = pagination;
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 3) {
+            endPage = Math.min(5, totalPages);
+        }
+        if (currentPage >= totalPages - 2) {
+            startPage = Math.max(1, totalPages - 4);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            pages.push(
+                <button
+                    key={i}
+                    onClick={() => goToPage(i)}
+                    className={`w-10 h-10 rounded-lg font-medium transition-all duration-200 ${
+                        currentPage === i
+                            ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30"
+                            : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
+                    }`}
+                >
+                    {i}
+                </button>
+            );
+        }
+        return pages;
     };
 
     return (
@@ -73,7 +132,7 @@ const AdminPanel = () => {
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full">
                         <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
                         <span className="text-sm font-medium text-amber-700">
-                            {posts.length} pending {posts.length === 1 ? 'review' : 'reviews'}
+                            {pagination.totalPosts} pending {pagination.totalPosts === 1 ? 'review' : 'reviews'}
                         </span>
                     </div>
                 </div>
@@ -118,74 +177,138 @@ const AdminPanel = () => {
                         <p className="text-gray-500">No pending posts to review right now</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {posts.map((post) => (
-                            <article
-                                key={post._id}
-                                className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
-                            >
-                                <div className="relative">
-                                    <img
-                                        src={post.image}
-                                        alt={post.title}
-                                        className="w-full h-48 object-cover"
-                                    />
-                                    <div className="absolute top-3 left-3">
-                                        <span className="px-3 py-1 bg-amber-500 text-white text-xs font-medium rounded-full">
-                                            Pending Review
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="p-5">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
-                                        {post.title}
-                                    </h3>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
-                                            <span className="text-white text-xs font-medium">
-                                                {post.user.name.charAt(0).toUpperCase()}
+                    <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {posts.map((post) => (
+                                <article
+                                    key={post._id}
+                                    className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
+                                >
+                                    <div className="relative">
+                                        <img
+                                            src={post.image}
+                                            alt={post.title}
+                                            className="w-full h-48 object-cover"
+                                        />
+                                        <div className="absolute top-3 left-3">
+                                            <span className="px-3 py-1 bg-amber-500 text-white text-xs font-medium rounded-full">
+                                                Pending Review
                                             </span>
                                         </div>
-                                        <span className="text-sm text-gray-600">
-                                            {post.user.name}
-                                        </span>
                                     </div>
-                                    <p className="text-gray-500 text-sm line-clamp-2 mb-4">
-                                        {post.description}
-                                    </p>
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={() => approveBlog(post._id)}
-                                            disabled={actionLoading === post._id}
-                                            className="flex-1 py-2.5 px-4 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                        >
-                                            {actionLoading === post._id ? (
-                                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                            ) : (
+                                    <div className="p-5">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+                                            {post.title}
+                                        </h3>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                                                <span className="text-white text-xs font-medium">
+                                                    {post.user.name.charAt(0).toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <span className="text-sm text-gray-600">
+                                                {post.user.name}
+                                            </span>
+                                        </div>
+                                        <p className="text-gray-500 text-sm line-clamp-2 mb-4">
+                                            {post.description}
+                                        </p>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => approveBlog(post._id)}
+                                                disabled={actionLoading === post._id}
+                                                className="flex-1 py-2.5 px-4 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
+                                                {actionLoading === post._id ? (
+                                                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                ) : (
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                )}
+                                                Approve
+                                            </button>
+                                            <button
+                                                onClick={() => rejectBlog(post._id)}
+                                                disabled={actionLoading === post._id}
+                                                className="flex-1 py-2.5 px-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
-                                            )}
-                                            Approve
-                                        </button>
-                                        <button
-                                            onClick={() => rejectBlog(post._id)}
-                                            disabled={actionLoading === post._id}
-                                            className="flex-1 py-2.5 px-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                            Reject
-                                        </button>
+                                                Reject
+                                            </button>
+                                        </div>
                                     </div>
+                                </article>
+                            ))}
+                        </div>
+
+                        {/* Pagination */}
+                        {pagination.totalPages > 1 && (
+                            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+                                <button
+                                    onClick={() => goToPage(pagination.currentPage - 1)}
+                                    disabled={!pagination.hasPrevPage}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                    Previous
+                                </button>
+
+                                <div className="flex items-center gap-2">
+                                    {pagination.currentPage > 3 && pagination.totalPages > 5 && (
+                                        <>
+                                            <button
+                                                onClick={() => goToPage(1)}
+                                                className="w-10 h-10 rounded-lg font-medium bg-white text-gray-700 hover:bg-gray-100 border border-gray-200 transition-all duration-200"
+                                            >
+                                                1
+                                            </button>
+                                            <span className="text-gray-400">...</span>
+                                        </>
+                                    )}
+
+                                    {renderPageNumbers()}
+
+                                    {pagination.currentPage < pagination.totalPages - 2 && pagination.totalPages > 5 && (
+                                        <>
+                                            <span className="text-gray-400">...</span>
+                                            <button
+                                                onClick={() => goToPage(pagination.totalPages)}
+                                                className="w-10 h-10 rounded-lg font-medium bg-white text-gray-700 hover:bg-gray-100 border border-gray-200 transition-all duration-200"
+                                            >
+                                                {pagination.totalPages}
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
-                            </article>
-                        ))}
-                    </div>
+
+                                <button
+                                    onClick={() => goToPage(pagination.currentPage + 1)}
+                                    disabled={!pagination.hasNextPage}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                >
+                                    Next
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Page Info */}
+                        {pagination.totalPosts > 0 && (
+                            <div className="mt-4 text-center text-sm text-gray-500">
+                                Showing {posts.length} of {pagination.totalPosts} pending posts
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
