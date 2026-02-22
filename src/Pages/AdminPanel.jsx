@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../Services/api';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -8,6 +8,9 @@ const AdminPanel = () => {
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(null);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchInput, setSearchInput] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
@@ -15,16 +18,13 @@ const AdminPanel = () => {
         hasNextPage: false,
         hasPrevPage: false,
     });
+    const debounceTimerRef = useRef(null);
 
-    useEffect(() => {
-        fetchUnapprovedPosts();
-    }, [pagination.currentPage]);
-
-    const fetchUnapprovedPosts = async () => {
+    const fetchUnapprovedPosts = useCallback(async () => {
         setIsLoading(true);
         try {
             const response = await api.get(
-                `/posts/unapprovedpost?page=${pagination.currentPage}&limit=9`
+                `/posts/unapprovedPost?page=${pagination.currentPage}&limit=9&search=${encodeURIComponent(searchQuery)}`
             );
             setPosts(response.data.posts);
             setPagination(prev => ({
@@ -35,7 +35,55 @@ const AdminPanel = () => {
             console.log(error);
         } finally {
             setIsLoading(false);
+            setIsSearching(false);
         }
+    }, [pagination.currentPage, searchQuery]);
+
+    useEffect(() => {
+        fetchUnapprovedPosts();
+    }, [fetchUnapprovedPosts]);
+
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
+
+    const handleInputChange = (e) => {
+        const value = e.target.value;
+        setSearchInput(value);
+        setIsSearching(true);
+
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        debounceTimerRef.current = setTimeout(() => {
+            setSearchQuery(value);
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+        }, 500);
+    };
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+        setIsSearching(true);
+        setSearchQuery(searchInput);
+        setPagination(prev => ({ ...prev, currentPage: 1 }));
+    };
+
+    const clearSearch = () => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+        setSearchInput("");
+        setSearchQuery("");
+        setIsSearching(false);
+        setPagination(prev => ({ ...prev, currentPage: 1 }));
     };
 
     const approveBlog = async (id) => {
@@ -127,6 +175,48 @@ const AdminPanel = () => {
                 </div>
                 <p className="text-center text-gray-500">Review and moderate pending blog submissions</p>
 
+                <form onSubmit={handleSearch} className="max-w-xl mx-auto mt-6">
+                    <div className="relative flex items-center">
+                        <div className="absolute left-4 text-gray-400">
+                            {isSearching ? (
+                                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            ) : (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            )}
+                        </div>
+                        <input
+                            type="text"
+                            value={searchInput}
+                            onChange={handleInputChange}
+                            placeholder="Search pending posts by title or content..."
+                            className="w-full pl-12 pr-24 py-3 rounded-2xl border border-gray-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all duration-200 text-gray-900 placeholder-gray-400 shadow-sm"
+                        />
+                        {searchInput && (
+                            <button
+                                type="button"
+                                onClick={clearSearch}
+                                className="absolute right-20 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={isSearching}
+                            className="absolute right-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white font-medium rounded-xl transition-all duration-200"
+                        >
+                            {isSearching ? "..." : "Search"}
+                        </button>
+                    </div>
+                </form>
+
                 {/* Stats Badge */}
                 <div className="flex justify-center mt-6">
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full">
@@ -173,8 +263,20 @@ const AdminPanel = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">All caught up!</h3>
-                        <p className="text-gray-500">No pending posts to review right now</p>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                            {searchQuery ? "No results found" : "All caught up!"}
+                        </h3>
+                        <p className="text-gray-500">
+                            {searchQuery ? "Try different keywords or clear search" : "No pending posts to review right now"}
+                        </p>
+                        {searchQuery && (
+                            <button
+                                onClick={clearSearch}
+                                className="mt-4 px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-xl transition-all duration-200"
+                            >
+                                Clear search
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <>
